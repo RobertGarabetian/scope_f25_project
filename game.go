@@ -10,6 +10,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
+	"github.com/hajimehoshi/bitmapfont/v4"
 )
 
 // --- Initialization ---
@@ -79,6 +81,7 @@ func NewGame() *Game {
 		coinsCollected: 0,
 		gameOver:   false,
 		spawnTimer: 0,
+		restartInput: "",
 		fishSprite: createFishSprite(),
 		kelpSprite: createKelpSprite(),
 	}
@@ -89,10 +92,40 @@ func NewGame() *Game {
 
 func (g *Game) Update() error {
 	if g.gameOver {
-		// Reset game on pressing space
-		if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
-			*g = *NewGame()
+		// Handle text input for restart code "anay"
+		// Check for Enter key to submit
+		if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
+			if g.restartInput == "anay" {
+				*g = *NewGame()
+			} else {
+				// Wrong code, clear input
+				g.restartInput = ""
+			}
+			return nil
 		}
+		
+		// Handle backspace
+		if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) {
+			if len(g.restartInput) > 0 {
+				g.restartInput = g.restartInput[:len(g.restartInput)-1]
+			}
+			return nil
+		}
+		
+		// Capture typed characters (letters only, lowercase)
+		keys := inpututil.AppendJustPressedKeys(nil)
+		for _, key := range keys {
+			// Convert key to character (a-z only)
+			if key >= ebiten.KeyA && key <= ebiten.KeyZ {
+				char := string(rune('a' + (key - ebiten.KeyA)))
+				g.restartInput += char
+				// Limit input length to prevent overflow
+				if len(g.restartInput) > 10 {
+					g.restartInput = g.restartInput[:10]
+				}
+			}
+		}
+		
 		return nil
 	}
 
@@ -181,11 +214,11 @@ func (g *Game) Update() error {
 	g.coins = newCoins
 
 	// 5. Collision Detection for Leader with Obstacles
-	playerRect := collisionRect{
-		x: PlayerX,
-		y: g.playerY,
-		w: PlayerSize,
-		h: PlayerSize,
+	// Use circle-based collision for fish (more accurate than rectangle)
+	playerCircle := circleCollision{
+		x:      PlayerX + PlayerSize/2,
+		y:      g.playerY + PlayerSize/2,
+		radius: PlayerSize * 0.4, // Use 40% of size as radius for tighter fit
 	}
 
 	for _, obs := range g.obstacles {
@@ -195,7 +228,7 @@ func (g *Game) Update() error {
 			w: obs.width,
 			h: obs.height,
 		}
-		if checkAABBCollision(playerRect, obsRect) {
+		if checkCircleRectCollision(playerCircle, obsRect) {
 			g.gameOver = true
 			break
 		}
@@ -205,13 +238,12 @@ func (g *Game) Update() error {
 	if !g.gameOver {
 		for _, coin := range g.coins {
 			if !coin.collected {
-				coinRect := collisionRect{
-					x: coin.x,
-					y: coin.y,
-					w: coin.size,
-					h: coin.size,
+				coinCircle := circleCollision{
+					x:      coin.x + coin.size/2,
+					y:      coin.y + coin.size/2,
+					radius: coin.size * 0.4,
 				}
-				if checkAABBCollision(playerRect, coinRect) {
+				if checkCircleCollision(playerCircle, coinCircle) {
 					coin.collected = true
 					g.coinsCollected++
 				}
@@ -222,11 +254,10 @@ func (g *Game) Update() error {
 	// 7. Collision Detection for all Fish with Obstacles
 	if !g.gameOver {
 		for _, fish := range g.fish {
-			fishRect := collisionRect{
-				x: fish.x,
-				y: fish.y,
-				w: FishSize,
-				h: FishSize,
+			fishCircle := circleCollision{
+				x:      fish.x + FishSize/2,
+				y:      fish.y + FishSize/2,
+				radius: FishSize * 0.4, // Use 40% of size as radius for tighter fit
 			}
 			
 			for _, obs := range g.obstacles {
@@ -236,7 +267,7 @@ func (g *Game) Update() error {
 					w: obs.width,
 					h: obs.height,
 				}
-				if checkAABBCollision(fishRect, obsRect) {
+				if checkCircleRectCollision(fishCircle, obsRect) {
 					g.gameOver = true
 					break
 				}
@@ -250,22 +281,20 @@ func (g *Game) Update() error {
 	// 8. Coin Collection Detection for Fish
 	if !g.gameOver {
 		for _, fish := range g.fish {
-			fishRect := collisionRect{
-				x: fish.x,
-				y: fish.y,
-				w: FishSize,
-				h: FishSize,
+			fishCircle := circleCollision{
+				x:      fish.x + FishSize/2,
+				y:      fish.y + FishSize/2,
+				radius: FishSize * 0.4,
 			}
 			
 			for _, coin := range g.coins {
 				if !coin.collected {
-					coinRect := collisionRect{
-						x: coin.x,
-						y: coin.y,
-						w: coin.size,
-						h: coin.size,
+					coinCircle := circleCollision{
+						x:      coin.x + coin.size/2,
+						y:      coin.y + coin.size/2,
+						radius: coin.size * 0.4,
 					}
-					if checkAABBCollision(fishRect, coinRect) {
+					if checkCircleCollision(fishCircle, coinCircle) {
 						coin.collected = true
 						g.coinsCollected++
 					}
@@ -342,21 +371,60 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		// Right border
 		ebitenutil.DrawRect(screen, panelX+panelWidth-borderWidth, panelY, borderWidth, panelHeight, borderColor)
 		
-		// Draw game over text and stats
+		// Draw game over text and stats with larger font
 		gameOverText := "GAME OVER"
 		scoreText := fmt.Sprintf("Final Score: %d", g.score)
 		coinsText := fmt.Sprintf("Coins Collected: %d", g.coinsCollected)
-		restartText := "Press SPACE to Restart"
+		restartText := "Type 'anay' and press ENTER to restart"
 		
 		// Calculate text positions (centered in panel)
-		textStartX := int(panelX + 50)
-		textStartY := int(panelY + 60)
-		lineSpacing := 40
+		textStartX := float64(panelX + 50)
+		textStartY := float64(panelY + 60)
+		lineSpacing := 60.0
 		
-		ebitenutil.DebugPrintAt(screen, gameOverText, textStartX, textStartY)
-		ebitenutil.DebugPrintAt(screen, scoreText, textStartX, textStartY+lineSpacing)
-		ebitenutil.DebugPrintAt(screen, coinsText, textStartX, textStartY+lineSpacing*2)
-		ebitenutil.DebugPrintAt(screen, restartText, textStartX, textStartY+lineSpacing*4)
+		// Use bitmap font with scaling for larger text
+		titleFace := text.NewGoXFace(bitmapfont.Face)
+		titleOpts := &text.DrawOptions{}
+		titleOpts.GeoM.Scale(3.0, 3.0) // Scale up 3x for title
+		titleOpts.GeoM.Translate(textStartX, textStartY)
+		
+		statsFace := text.NewGoXFace(bitmapfont.Face)
+		statsOpts := &text.DrawOptions{}
+		statsOpts.GeoM.Scale(2.0, 2.0) // Scale up 2x for stats
+		statsOpts.GeoM.Translate(textStartX, textStartY+lineSpacing)
+		
+		restartFace := text.NewGoXFace(bitmapfont.Face)
+		restartOpts := &text.DrawOptions{}
+		restartOpts.GeoM.Scale(1.5, 1.5) // Scale up 1.5x for restart text
+		restartOpts.GeoM.Translate(textStartX, textStartY+lineSpacing*4)
+		
+		textColor := color.White
+		
+		// Draw title
+		titleOpts.ColorScale.ScaleWithColor(textColor)
+		text.Draw(screen, gameOverText, titleFace, titleOpts)
+		
+		// Draw stats
+		statsOpts.ColorScale.ScaleWithColor(textColor)
+		text.Draw(screen, scoreText, statsFace, statsOpts)
+		
+		statsOpts2 := &text.DrawOptions{}
+		statsOpts2.GeoM.Scale(2.0, 2.0)
+		statsOpts2.GeoM.Translate(textStartX, textStartY+lineSpacing*2)
+		statsOpts2.ColorScale.ScaleWithColor(textColor)
+		text.Draw(screen, coinsText, statsFace, statsOpts2)
+		
+		// Draw restart instruction
+		restartOpts.ColorScale.ScaleWithColor(textColor)
+		text.Draw(screen, restartText, restartFace, restartOpts)
+		
+		// Draw input field
+		inputText := "Input: " + g.restartInput + "_"
+		inputOpts := &text.DrawOptions{}
+		inputOpts.GeoM.Scale(1.5, 1.5)
+		inputOpts.GeoM.Translate(textStartX, textStartY+lineSpacing*5)
+		inputOpts.ColorScale.ScaleWithColor(textColor)
+		text.Draw(screen, inputText, restartFace, inputOpts)
 	}
 }
 

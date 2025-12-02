@@ -32,6 +32,7 @@ type Game struct {
 	coinsCollected int // Number of coins collected
 	gameOver   bool
 	spawnTimer int
+	restartInput string // Input string for restart code
 	// Sprites
 	fishSprite    *ebiten.Image // Pixel art sprite for fish
 	kelpSprite    *ebiten.Image // Pixel art sprite for kelp (will be scaled)
