@@ -148,6 +148,33 @@ func (g *Game) drawBubble(screen *ebiten.Image, bubble *Bubble) {
 	drawCircle(screen, highlightX, highlightY, highlightSize, innerColor)
 }
 
+// drawCoin draws a circular coin with a shiny appearance
+func (g *Game) drawCoin(screen *ebiten.Image, coin *Coin) {
+	radius := coin.size / 2
+	centerX := coin.x + radius
+	centerY := coin.y + radius
+	
+	// Draw outer dark border
+	borderColor := color.RGBA{180, 140, 0, 255} // Dark gold
+	drawCircle(screen, centerX, centerY, radius, borderColor)
+	
+	// Draw main coin body (slightly smaller)
+	mainColor := color.RGBA{255, 215, 0, 255} // Gold
+	drawCircle(screen, centerX, centerY, radius*0.9, mainColor)
+	
+	// Draw highlight (top-left)
+	highlightColor := color.RGBA{255, 245, 150, 255} // Bright gold
+	highlightX := centerX - radius*0.3
+	highlightY := centerY - radius*0.3
+	drawCircle(screen, highlightX, highlightY, radius*0.4, highlightColor)
+	
+	// Draw shadow/darker area (bottom-right) for depth
+	shadowColor := color.RGBA{200, 170, 0, 255} // Darker gold
+	shadowX := centerX + radius*0.2
+	shadowY := centerY + radius*0.2
+	drawCircle(screen, shadowX, shadowY, radius*0.5, shadowColor)
+}
+
 // Helper function to draw a filled circle
 func drawCircle(screen *ebiten.Image, cx, cy, radius float64, col color.Color) {
 	// Create a small image for the circle and draw it

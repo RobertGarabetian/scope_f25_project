@@ -22,6 +22,7 @@ type Fish struct {
 	offsetX, offsetY float64 // Base relative offset from the leader's position (center of wander circle)
 	targetOffsetX, targetOffsetY float64 // Random target offset for wandering
 	wanderTimer    int     // Timer to change wander target
+	wanderInterval int     // Random interval for this fish to wander
 }
 
 // BackgroundFish represents ambient fish swimming in the background

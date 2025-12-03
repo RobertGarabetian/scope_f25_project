@@ -72,7 +72,8 @@ func NewGame() *Game {
 			offsetY:       baseOffsetY,
 			targetOffsetX: baseOffsetX,
 			targetOffsetY: baseOffsetY,
-			wanderTimer:   rand.Intn(60), // Random start time for wander changes
+			wanderTimer:   rand.Intn(FishWanderIntervalMax), // Random start time
+			wanderInterval: FishWanderIntervalMin + rand.Intn(FishWanderIntervalMax-FishWanderIntervalMin+1), // Random interval for this fish
 		}
 	}
 	
@@ -226,8 +227,11 @@ func (g *Game) Update() error {
 	for _, fish := range g.fish {
 		// Update wander timer and pick new random target when timer expires
 		fish.wanderTimer++
-		if fish.wanderTimer >= FishWanderInterval {
+		if fish.wanderTimer >= fish.wanderInterval {
 			fish.wanderTimer = 0
+			
+			// Pick a new random wander interval for next time (adds variety to movement)
+			fish.wanderInterval = FishWanderIntervalMin + rand.Intn(FishWanderIntervalMax-FishWanderIntervalMin+1)
 			
 			// Pick a new random target offset within the wander radius
 			// Use random angle and distance from base offset
@@ -469,10 +473,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 
 	// Draw Coins
-	coinColor := color.RGBA{255, 215, 0, 255} // Gold
 	for _, coin := range g.coins {
 		if !coin.collected {
-			ebitenutil.DrawRect(screen, coin.x, coin.y, coin.size, coin.size, coinColor)
+			g.drawCoin(screen, coin)
 		}
 	}
 
@@ -484,13 +487,35 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		g.drawFish(screen, fish.x, fish.y, FishSize, false)
 	}
 
-	// Draw Score, Coin Count, and Speed
+	// Draw Score, Coin Count, and Speed (larger text)
 	scoreText := fmt.Sprintf("Score: %d", g.score)
 	coinText := fmt.Sprintf("Coins: %d", g.coinsCollected)
 	speedText := fmt.Sprintf("Speed: %.2fx", g.speedMultiplier)
-	ebitenutil.DebugPrintAt(screen, scoreText, 10, 10)
-	ebitenutil.DebugPrintAt(screen, coinText, 10, 30)
-	ebitenutil.DebugPrintAt(screen, speedText, 10, 50)
+	
+	// Use bitmap font with scaling for larger, more readable text
+	statsFace := text.NewGoXFace(bitmapfont.Face)
+	statsColor := color.White
+	
+	// Draw Score
+	scoreOpts := &text.DrawOptions{}
+	scoreOpts.GeoM.Scale(2.0, 2.0) // 2x scale
+	scoreOpts.GeoM.Translate(10, 10)
+	scoreOpts.ColorScale.ScaleWithColor(statsColor)
+	text.Draw(screen, scoreText, statsFace, scoreOpts)
+	
+	// Draw Coins
+	coinOpts := &text.DrawOptions{}
+	coinOpts.GeoM.Scale(2.0, 2.0)
+	coinOpts.GeoM.Translate(10, 35)
+	coinOpts.ColorScale.ScaleWithColor(statsColor)
+	text.Draw(screen, coinText, statsFace, coinOpts)
+	
+	// Draw Speed
+	speedOpts := &text.DrawOptions{}
+	speedOpts.GeoM.Scale(2.0, 2.0)
+	speedOpts.GeoM.Translate(10, 60)
+	speedOpts.ColorScale.ScaleWithColor(statsColor)
+	text.Draw(screen, speedText, statsFace, speedOpts)
 
 	// Draw Game Over Screen
 	if g.gameOver {
