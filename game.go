@@ -135,6 +135,13 @@ func NewGame() *Game {
 		}
 	}
 	
+	// Load optional game over image (won't crash if it doesn't exist)
+	gameOverImg, err := loadImageFromFile("assets/anay.png")
+	if err != nil {
+		// Image not found or couldn't load - that's okay, just use nil
+		gameOverImg = nil
+	}
+	
 	g := &Game{
 		// Center the player vertically on the left side
 		playerY: centerY,
@@ -154,6 +161,7 @@ func NewGame() *Game {
 		speedMultiplier: 1.0,
 		fishSprite: createFishSprite(),
 		kelpSprite: createKelpSprite(),
+		gameOverImage: gameOverImg,
 	}
 	return g
 }
@@ -578,6 +586,26 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		ebitenutil.DrawRect(screen, panelX, panelY, borderWidth, panelHeight, borderColor)
 		// Right border
 		ebitenutil.DrawRect(screen, panelX+panelWidth-borderWidth, panelY, borderWidth, panelHeight, borderColor)
+		
+		// Draw game over image if it exists (inside the panel on the right side)
+		if g.gameOverImage != nil {
+			imgW, imgH := g.gameOverImage.Size()
+			// Scale image to fit inside panel (leave margins)
+			maxSize := 200.0 // Smaller to fit nicely in panel
+			scale := maxSize / float64(imgW)
+			if float64(imgH)*scale > maxSize {
+				scale = maxSize / float64(imgH)
+			}
+			
+			// Position image on the right side of the panel, vertically centered
+			imgX := panelX + panelWidth - maxSize - 30 // 30px margin from right edge
+			imgY := panelY + (panelHeight-maxSize)/2   // Vertically centered
+			
+			op := &ebiten.DrawImageOptions{}
+			op.GeoM.Scale(scale, scale)
+			op.GeoM.Translate(imgX, imgY)
+			screen.DrawImage(g.gameOverImage, op)
+		}
 		
 		// Draw game over text and stats with larger font
 		gameOverText := "GAME OVER"

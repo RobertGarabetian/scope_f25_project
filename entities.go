@@ -73,6 +73,7 @@ type Game struct {
 	// Sprites
 	fishSprite    *ebiten.Image // Pixel art sprite for fish
 	kelpSprite    *ebiten.Image // Pixel art sprite for kelp (will be scaled)
+	gameOverImage *ebiten.Image // Optional image to display on game over screen
 }
 
 // A simple structure to represent a bounding box for collision checking
