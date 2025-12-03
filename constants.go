@@ -15,5 +15,7 @@ const (
 	CircleRadius     = 100.0 // Radius of the circle behind the leader
 	CircleOffsetX    = -100.0 // X offset of the circle center behind the leader
 	PlayerX          = 200.0  // Fixed X position of the leader
+	FishWanderRadius = 40.0   // Radius within which fish can wander from their base position
+	FishWanderInterval = 120  // Frames between wander target changes (2 seconds at 60 FPS)
 )
 

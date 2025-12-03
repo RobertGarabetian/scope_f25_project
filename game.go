@@ -63,11 +63,16 @@ func NewGame() *Game {
 		}
 		
 		// Store relative offset from leader's center
+		baseOffsetX := fx - PlayerX
+		baseOffsetY := fy - centerY
 		fish[i] = &Fish{
-			x:       fx,
-			y:       fy,
-			offsetX: fx - PlayerX,
-			offsetY: fy - centerY,
+			x:             fx,
+			y:             fy,
+			offsetX:       baseOffsetX,
+			offsetY:       baseOffsetY,
+			targetOffsetX: baseOffsetX,
+			targetOffsetY: baseOffsetY,
+			wanderTimer:   rand.Intn(60), // Random start time for wander changes
 		}
 	}
 	
@@ -82,6 +87,8 @@ func NewGame() *Game {
 		gameOver:   false,
 		spawnTimer: 0,
 		restartInput: "",
+		gameTime:   0,
+		speedMultiplier: 1.0,
 		fishSprite: createFishSprite(),
 		kelpSprite: createKelpSprite(),
 	}
@@ -129,6 +136,16 @@ func (g *Game) Update() error {
 		return nil
 	}
 
+	// 0. Update game time and speed multiplier
+	g.gameTime++
+	// Increase speed by 5% every 10 seconds (600 frames at 60 FPS)
+	// Speed starts at 1.0 and increases gradually
+	g.speedMultiplier = 2.0 + float64(g.gameTime)/12000.0 // Increases by 0.05 every 600 frames
+	// Cap the maximum speed multiplier at 3.0 (3x original speed)
+	if g.speedMultiplier > 3.0 {
+		g.speedMultiplier = 3.0
+	}
+
 	// 1. Handle Player Input
 	if ebiten.IsKeyPressed(ebiten.KeyUp) || ebiten.IsKeyPressed(ebiten.KeyW) {
 		g.playerY -= PlayerSpeed
@@ -145,11 +162,25 @@ func (g *Game) Update() error {
 		g.playerY = float64(ScreenHeight - PlayerSize)
 	}
 
-	// 2. Update Fish Positions (following behavior with delay)
+	// 2. Update Fish Positions (following behavior with random wandering)
 	for _, fish := range g.fish {
-		// Calculate target position: leader position + fish's relative offset
-		targetX := PlayerX + fish.offsetX
-		targetY := g.playerY + fish.offsetY
+		// Update wander timer and pick new random target when timer expires
+		fish.wanderTimer++
+		if fish.wanderTimer >= FishWanderInterval {
+			fish.wanderTimer = 0
+			
+			// Pick a new random target offset within the wander radius
+			// Use random angle and distance from base offset
+			angle := rand.Float64() * 2 * math.Pi
+			radius := FishWanderRadius * math.Sqrt(rand.Float64())
+			
+			fish.targetOffsetX = fish.offsetX + radius*math.Cos(angle)
+			fish.targetOffsetY = fish.offsetY + radius*math.Sin(angle)
+		}
+		
+		// Calculate target position: leader position + fish's target offset
+		targetX := PlayerX + fish.targetOffsetX
+		targetY := g.playerY + fish.targetOffsetY
 		
 		// Move fish towards target position smoothly (with delay)
 		dx := targetX - fish.x
@@ -185,9 +216,10 @@ func (g *Game) Update() error {
 	}
 
 	// 3. Move and Cleanup Obstacles, Update Score
+	currentScrollSpeed := ScrollSpeed * g.speedMultiplier
 	newObstacles := make([]*Obstacle, 0)
 	for _, obs := range g.obstacles {
-		obs.x -= ScrollSpeed // Scroll left
+		obs.x -= currentScrollSpeed // Scroll left with speed multiplier
 		
 		// Check if obstacle has been passed (player has passed it)
 		if !obs.passed && obs.x+obs.width < PlayerX {
@@ -204,7 +236,7 @@ func (g *Game) Update() error {
 	// 4. Move and Cleanup Coins
 	newCoins := make([]*Coin, 0)
 	for _, coin := range g.coins {
-		coin.x -= ScrollSpeed // Scroll left
+		coin.x -= currentScrollSpeed // Scroll left with speed multiplier
 		
 		// Remove coins that are off-screen or collected
 		if coin.x > -coin.size && !coin.collected {
@@ -218,7 +250,7 @@ func (g *Game) Update() error {
 	playerCircle := circleCollision{
 		x:      PlayerX + PlayerSize/2,
 		y:      g.playerY + PlayerSize/2,
-		radius: PlayerSize * 0.4, // Use 40% of size as radius for tighter fit
+		radius: PlayerSize * 0.35, // Use 40% of size as radius for tighter fit
 	}
 
 	for _, obs := range g.obstacles {
@@ -339,11 +371,13 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		g.drawFish(screen, fish.x, fish.y, FishSize, false)
 	}
 
-	// Draw Score and Coin Count
+	// Draw Score, Coin Count, and Speed
 	scoreText := fmt.Sprintf("Score: %d", g.score)
 	coinText := fmt.Sprintf("Coins: %d", g.coinsCollected)
+	speedText := fmt.Sprintf("Speed: %.2fx", g.speedMultiplier)
 	ebitenutil.DebugPrintAt(screen, scoreText, 10, 10)
 	ebitenutil.DebugPrintAt(screen, coinText, 10, 30)
+	ebitenutil.DebugPrintAt(screen, speedText, 10, 50)
 
 	// Draw Game Over Screen
 	if g.gameOver {
@@ -443,7 +477,7 @@ func (g *Game) spawnObstaclePair() {
 	gapCenter := gapSize/2 + rand.Float64()*(ScreenHeight-gapSize)
 
 	// Define the obstacle width
-	obsWidth := float64(50)
+	obsWidth := float64(80)
 
 	// 1. Create the Top Obstacle
 	topHeight := gapCenter - gapSize/2

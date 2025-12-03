@@ -104,7 +104,7 @@ func (g *Game) drawFish(screen *ebiten.Image, x, y, size float64, isLeader bool)
 	screen.DrawImage(g.fishSprite, op)
 }
 
-// drawKelp draws kelp by tiling the kelp sprite vertically
+// drawKelp draws kelp by tiling the kelp sprite vertically with wave animation
 func (g *Game) drawKelp(screen *ebiten.Image, x, y, width, height float64) {
 	kelpTileHeight := 32.0 // Height of one kelp tile
 	tiles := int(height / kelpTileHeight) + 1
@@ -116,12 +116,24 @@ func (g *Game) drawKelp(screen *ebiten.Image, x, y, width, height float64) {
 			tileHeight = (y + height) - tileY
 		}
 		
+		// Calculate wave offset based on time and position
+		// Different kelp plants wave at different speeds based on their x position
+		timeOffset := float64(g.gameTime) * 0.05 // Animation speed
+		positionOffset := x * 0.01 // Offset based on x position for variety
+		yOffset := tileY * 0.015 // More wave at the top
+		
+		// Create a smooth wave motion using sine
+		waveAmplitude := 3.0 + (tileY-y)/height*8.0 // Stronger wave at top of kelp
+		waveX := math.Sin(timeOffset+positionOffset+yOffset) * waveAmplitude
+		
 		op := &ebiten.DrawImageOptions{}
 		// Scale to match width and tile height
 		scaleX := width / 8.0
 		scaleY := tileHeight / kelpTileHeight
 		op.GeoM.Scale(scaleX, scaleY)
-		op.GeoM.Translate(x, tileY)
+		
+		// Apply wave offset and translate to position
+		op.GeoM.Translate(x+waveX, tileY)
 		
 		screen.DrawImage(g.kelpSprite, op)
 	}

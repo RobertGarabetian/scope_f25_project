@@ -19,7 +19,9 @@ type Coin struct {
 // Fish represents a follower fish that trails behind the leader
 type Fish struct {
 	x, y           float64 // Current position of the fish
-	offsetX, offsetY float64 // Relative offset from the leader's position
+	offsetX, offsetY float64 // Base relative offset from the leader's position (center of wander circle)
+	targetOffsetX, targetOffsetY float64 // Random target offset for wandering
+	wanderTimer    int     // Timer to change wander target
 }
 
 // Game holds the entire game state
@@ -33,6 +35,8 @@ type Game struct {
 	gameOver   bool
 	spawnTimer int
 	restartInput string // Input string for restart code
+	gameTime   int     // Total frames elapsed (for speed increase)
+	speedMultiplier float64 // Current speed multiplier
 	// Sprites
 	fishSprite    *ebiten.Image // Pixel art sprite for fish
 	kelpSprite    *ebiten.Image // Pixel art sprite for kelp (will be scaled)
