@@ -104,6 +104,74 @@ func (g *Game) drawFish(screen *ebiten.Image, x, y, size float64, isLeader bool)
 	screen.DrawImage(g.fishSprite, op)
 }
 
+// drawBackgroundFish draws a background fish with depth-based transparency and blur effect
+func (g *Game) drawBackgroundFish(screen *ebiten.Image, bgFish *BackgroundFish) {
+	op := &ebiten.DrawImageOptions{}
+	
+	// Get the sprite dimensions for proper scaling
+	spriteW, _ := g.fishSprite.Size()
+	scale := bgFish.size / float64(spriteW)
+	
+	// Flip horizontally if moving left
+	if bgFish.direction < 0 {
+		op.GeoM.Scale(-scale, scale)
+		op.GeoM.Translate(bgFish.x+bgFish.size, bgFish.y)
+	} else {
+		op.GeoM.Scale(scale, scale)
+		op.GeoM.Translate(bgFish.x, bgFish.y)
+	}
+	
+	// Apply depth-based transparency and color (more transparent = further back)
+	alpha := bgFish.depth * 0.4 // 0.12 to 0.28 alpha (very transparent)
+	
+	// Lighter/more washed out color for background fish
+	op.ColorM.Scale(0.7+bgFish.depth*0.3, 0.8+bgFish.depth*0.2, 1.0, alpha)
+	
+	screen.DrawImage(g.fishSprite, op)
+}
+
+// drawBubble draws a bubble with transparency
+func (g *Game) drawBubble(screen *ebiten.Image, bubble *Bubble) {
+	// Draw bubble as a circle with transparency
+	// We'll draw two circles - outer (lighter) and inner (highlight)
+	
+	outerColor := color.RGBA{200, 230, 255, 80} // Light blue, semi-transparent
+	innerColor := color.RGBA{255, 255, 255, 120} // White highlight, more opaque
+	
+	// Draw outer circle (main bubble)
+	drawCircle(screen, bubble.x, bubble.y, bubble.size, outerColor)
+	
+	// Draw inner highlight (smaller, offset up and left)
+	highlightSize := bubble.size * 0.4
+	highlightX := bubble.x - bubble.size*0.25
+	highlightY := bubble.y - bubble.size*0.25
+	drawCircle(screen, highlightX, highlightY, highlightSize, innerColor)
+}
+
+// Helper function to draw a filled circle
+func drawCircle(screen *ebiten.Image, cx, cy, radius float64, col color.Color) {
+	// Create a small image for the circle and draw it
+	size := int(radius * 2)
+	if size < 1 {
+		size = 1
+	}
+	
+	// Draw circle by checking distance from center
+	for y := 0; y < size; y++ {
+		for x := 0; x < size; x++ {
+			dx := float64(x) - radius
+			dy := float64(y) - radius
+			if dx*dx+dy*dy <= radius*radius {
+				px := int(cx - radius + float64(x))
+				py := int(cy - radius + float64(y))
+				if px >= 0 && px < ScreenWidth && py >= 0 && py < ScreenHeight {
+					screen.Set(px, py, col)
+				}
+			}
+		}
+	}
+}
+
 // drawKelp draws kelp by tiling the kelp sprite vertically with wave animation
 func (g *Game) drawKelp(screen *ebiten.Image, x, y, width, height float64) {
 	kelpTileHeight := 32.0 // Height of one kelp tile

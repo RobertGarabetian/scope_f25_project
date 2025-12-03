@@ -76,12 +76,72 @@ func NewGame() *Game {
 		}
 	}
 	
+	// Initialize background fish - swimming across the screen at various depths
+	backgroundFish := make([]*BackgroundFish, NumBackgroundFish)
+	for i := 0; i < NumBackgroundFish; i++ {
+		// Random starting position
+		startX := rand.Float64() * ScreenWidth
+		startY := rand.Float64() * ScreenHeight
+		
+		// Random direction (1 for right, -1 for left)
+		direction := 1
+		if rand.Float64() < 0.5 {
+			direction = -1
+		}
+		
+		// Random depth (0.3 to 0.7, lower = further back, more faded)
+		depth := 0.3 + rand.Float64()*0.4
+		
+		// Random speed (slower for background fish)
+		speed := 0.5 + rand.Float64()*1.0
+		
+		// Size based on depth (further = smaller)
+		size := 30.0 + depth*30.0 // 30-48 pixels
+		
+		backgroundFish[i] = &BackgroundFish{
+			x:         startX,
+			y:         startY,
+			speed:     speed,
+			direction: direction,
+			size:      size,
+			depth:     depth,
+		}
+	}
+	
+	// Initialize bubbles - floating upward at various speeds
+	bubbles := make([]*Bubble, NumBubbles)
+	for i := 0; i < NumBubbles; i++ {
+		// Random starting position
+		startX := rand.Float64() * ScreenWidth
+		startY := rand.Float64() * ScreenHeight
+		
+		// Random rising speed (slower bubbles)
+		speed := 0.5 + rand.Float64()*1.5 // 0.5 to 2.0 pixels per frame
+		
+		// Random size (smaller bubbles)
+		size := 3.0 + rand.Float64()*8.0 // 3-11 pixels
+		
+		// Random wobble speed for horizontal movement
+		wobbleSpeed := 0.02 + rand.Float64()*0.03 // 0.02 to 0.05
+		
+		bubbles[i] = &Bubble{
+			x:           startX,
+			y:           startY,
+			speed:       speed,
+			size:        size,
+			wobble:      rand.Float64() * 2 * math.Pi, // Random starting phase
+			wobbleSpeed: wobbleSpeed,
+		}
+	}
+	
 	g := &Game{
 		// Center the player vertically on the left side
 		playerY: centerY,
 		obstacles:  make([]*Obstacle, 0),
 		coins:      make([]*Coin, 0),
 		fish:       fish,
+		backgroundFish: backgroundFish,
+		bubbles:    bubbles,
 		score:      0,
 		coinsCollected: 0,
 		gameOver:   false,
@@ -212,6 +272,49 @@ func (g *Game) Update() error {
 		}
 		if fish.x > ScreenWidth-FishSize {
 			fish.x = float64(ScreenWidth - FishSize)
+		}
+	}
+
+	// 2.5. Update Background Fish Positions
+	for _, bgFish := range g.backgroundFish {
+		// Move fish in their direction
+		bgFish.x += bgFish.speed * float64(bgFish.direction)
+		
+		// Wrap around when fish goes off screen
+		if bgFish.direction > 0 && bgFish.x > ScreenWidth+bgFish.size {
+			// Moving right, wrap to left
+			bgFish.x = -bgFish.size
+			bgFish.y = rand.Float64() * ScreenHeight
+		} else if bgFish.direction < 0 && bgFish.x < -bgFish.size {
+			// Moving left, wrap to right
+			bgFish.x = ScreenWidth + bgFish.size
+			bgFish.y = rand.Float64() * ScreenHeight
+		}
+	}
+
+	// 2.6. Update Bubble Positions
+	for _, bubble := range g.bubbles {
+		// Move bubble upward
+		bubble.y -= bubble.speed
+		
+		// Apply wobble (horizontal sway)
+		bubble.wobble += bubble.wobbleSpeed
+		wobbleOffset := math.Sin(bubble.wobble) * 10.0 // Sway 10 pixels left/right
+		bubble.x += wobbleOffset * 0.05 // Apply small amount each frame
+		
+		// Wrap around when bubble goes off top of screen
+		if bubble.y < -bubble.size {
+			// Reset to bottom with new random x position
+			bubble.y = ScreenHeight + bubble.size
+			bubble.x = rand.Float64() * ScreenWidth
+			bubble.wobble = rand.Float64() * 2 * math.Pi
+		}
+		
+		// Keep bubble within horizontal bounds (with some slack for wobble)
+		if bubble.x < -20 {
+			bubble.x = ScreenWidth + 20
+		} else if bubble.x > ScreenWidth+20 {
+			bubble.x = -20
 		}
 	}
 
@@ -349,6 +452,16 @@ func (g *Game) Update() error {
 func (g *Game) Draw(screen *ebiten.Image) {
 	// Draw the background
 	screen.Fill(color.RGBA{135, 206, 250, 255}) // Sky Blue (Water/Air)
+
+	// Draw Background Fish (drawn first so they appear behind everything)
+	for _, bgFish := range g.backgroundFish {
+		g.drawBackgroundFish(screen, bgFish)
+	}
+
+	// Draw Bubbles (in the background layer)
+	for _, bubble := range g.bubbles {
+		g.drawBubble(screen, bubble)
+	}
 
 	// Draw Obstacles (Kelp)
 	for _, obs := range g.obstacles {

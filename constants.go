@@ -9,7 +9,7 @@ const (
 	ScrollSpeed      = 3.0  // Speed at which the environment scrolls
 	ObstacleMinGap   = 400   // Minimum vertical space for the path
 	ObstacleMaxGap   = 400   // Maximum vertical space for the path
-	NumFish          = 10    // Number of fish following the leader
+	NumFish          = 14    // Number of fish following the leader
 	FishSize         = 48    // Size of each following fish
 	FishFollowSpeed  = 4.0   // Speed at which fish follow
 	CircleRadius     = 100.0 // Radius of the circle behind the leader
@@ -17,5 +17,7 @@ const (
 	PlayerX          = 200.0  // Fixed X position of the leader
 	FishWanderRadius = 40.0   // Radius within which fish can wander from their base position
 	FishWanderInterval = 120  // Frames between wander target changes (2 seconds at 60 FPS)
+	NumBackgroundFish = 8     // Number of background ambient fish
+	NumBubbles        = 15    // Number of floating bubbles
 )
 
