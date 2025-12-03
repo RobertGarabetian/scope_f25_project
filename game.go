@@ -231,7 +231,7 @@ func (g *Game) Update() error {
 		accelerationRate = 8000.0 // Default to easy
 	}
 	
-	g.speedMultiplier = 1.0 + float64(g.gameTime)/accelerationRate
+	g.speedMultiplier = 2.0 + float64(g.gameTime)/accelerationRate
 	// Cap the maximum speed multiplier at 5.0 (5x original speed, increased from 3.0)
 	if g.speedMultiplier > 5.0 {
 		g.speedMultiplier = 5.0
