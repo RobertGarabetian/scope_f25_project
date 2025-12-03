@@ -43,6 +43,16 @@ type Bubble struct {
 	wobbleSpeed float64 // Speed of wobble animation
 }
 
+// Difficulty levels
+type Difficulty int
+
+const (
+	DifficultyNone Difficulty = iota
+	DifficultyEasy
+	DifficultyMedium
+	DifficultyHard
+)
+
 // Game holds the entire game state
 type Game struct {
 	playerY    float64
@@ -54,6 +64,8 @@ type Game struct {
 	score      int     // Score based on obstacles passed
 	coinsCollected int // Number of coins collected
 	gameOver   bool
+	gameStarted bool   // Whether the game has started (after difficulty selection)
+	difficulty Difficulty // Selected difficulty level
 	spawnTimer int
 	restartInput string // Input string for restart code
 	gameTime   int     // Total frames elapsed (for speed increase)

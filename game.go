@@ -146,6 +146,8 @@ func NewGame() *Game {
 		score:      0,
 		coinsCollected: 0,
 		gameOver:   false,
+		gameStarted: false, // Start with difficulty selection
+		difficulty: DifficultyNone,
 		spawnTimer: 0,
 		restartInput: "",
 		gameTime:   0,
@@ -159,6 +161,22 @@ func NewGame() *Game {
 // --- Ebitengine Interface Implementations ---
 
 func (g *Game) Update() error {
+	// Handle difficulty selection before game starts
+	if !g.gameStarted {
+		// Check for difficulty selection keys
+		if inpututil.IsKeyJustPressed(ebiten.Key1) || inpututil.IsKeyJustPressed(ebiten.KeyE) {
+			g.difficulty = DifficultyEasy
+			g.gameStarted = true
+		} else if inpututil.IsKeyJustPressed(ebiten.Key2) || inpututil.IsKeyJustPressed(ebiten.KeyM) {
+			g.difficulty = DifficultyMedium
+			g.gameStarted = true
+		} else if inpututil.IsKeyJustPressed(ebiten.Key3) || inpututil.IsKeyJustPressed(ebiten.KeyH) {
+			g.difficulty = DifficultyHard
+			g.gameStarted = true
+		}
+		return nil
+	}
+	
 	if g.gameOver {
 		// Handle text input for restart code "anay"
 		// Check for Enter key to submit
@@ -199,12 +217,24 @@ func (g *Game) Update() error {
 
 	// 0. Update game time and speed multiplier
 	g.gameTime++
-	// Increase speed by 5% every 10 seconds (600 frames at 60 FPS)
-	// Speed starts at 1.0 and increases gradually
-	g.speedMultiplier = 2.0 + float64(g.gameTime)/12000.0 // Increases by 0.05 every 600 frames
-	// Cap the maximum speed multiplier at 3.0 (3x original speed)
-	if g.speedMultiplier > 3.0 {
-		g.speedMultiplier = 3.0
+	
+	// Calculate speed multiplier based on difficulty
+	var accelerationRate float64
+	switch g.difficulty {
+	case DifficultyEasy:
+		accelerationRate = 8000.0 // Slow acceleration (increased from 12000)
+	case DifficultyMedium:
+		accelerationRate = 4000.0 // Medium acceleration (increased from 5000)
+	case DifficultyHard:
+		accelerationRate = 2000.0 // Fast acceleration (increased from 2500)
+	default:
+		accelerationRate = 8000.0 // Default to easy
+	}
+	
+	g.speedMultiplier = 1.0 + float64(g.gameTime)/accelerationRate
+	// Cap the maximum speed multiplier at 5.0 (5x original speed, increased from 3.0)
+	if g.speedMultiplier > 5.0 {
+		g.speedMultiplier = 5.0
 	}
 
 	// 1. Handle Player Input
@@ -467,6 +497,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		g.drawBubble(screen, bubble)
 	}
 
+	// If game hasn't started, show difficulty selection menu
+	if !g.gameStarted {
+		g.drawDifficultyMenu(screen)
+		return
+	}
+
 	// Draw Obstacles (Kelp)
 	for _, obs := range g.obstacles {
 		g.drawKelp(screen, obs.x, obs.y, obs.width, obs.height)
@@ -662,5 +698,90 @@ func (g *Game) spawnObstaclePair() {
 		}
 		g.coins = append(g.coins, coin)
 	}
+}
+
+// drawDifficultyMenu draws the difficulty selection screen
+func (g *Game) drawDifficultyMenu(screen *ebiten.Image) {
+	// Draw semi-transparent overlay
+	overlayColor := color.RGBA{0, 0, 0, 180}
+	ebitenutil.DrawRect(screen, 0, 0, ScreenWidth, ScreenHeight, overlayColor)
+	
+	// Draw menu panel
+	panelWidth := 600.0
+	panelHeight := 400.0
+	panelX := (ScreenWidth - panelWidth) / 2
+	panelY := (ScreenHeight - panelHeight) / 2
+	panelColor := color.RGBA{40, 40, 40, 255}
+	ebitenutil.DrawRect(screen, panelX, panelY, panelWidth, panelHeight, panelColor)
+	
+	// Draw panel border
+	borderColor := color.RGBA{255, 255, 255, 255}
+	borderWidth := 3.0
+	ebitenutil.DrawRect(screen, panelX, panelY, panelWidth, borderWidth, borderColor)
+	ebitenutil.DrawRect(screen, panelX, panelY+panelHeight-borderWidth, panelWidth, borderWidth, borderColor)
+	ebitenutil.DrawRect(screen, panelX, panelY, borderWidth, panelHeight, borderColor)
+	ebitenutil.DrawRect(screen, panelX+panelWidth-borderWidth, panelY, borderWidth, panelHeight, borderColor)
+	
+	// Create text face
+	textFace := text.NewGoXFace(bitmapfont.Face)
+	textColor := color.White
+	
+	// Draw title
+	titleText := "SELECT DIFFICULTY"
+	titleOpts := &text.DrawOptions{}
+	titleOpts.GeoM.Scale(3.0, 3.0)
+	titleOpts.GeoM.Translate(panelX+100, panelY+50)
+	titleOpts.ColorScale.ScaleWithColor(textColor)
+	text.Draw(screen, titleText, textFace, titleOpts)
+	
+	// Draw difficulty options
+	easyText := "1 or E - EASY"
+	easySubText := "Slow acceleration (8000 frames)"
+	mediumText := "2 or M - MEDIUM"
+	mediumSubText := "Medium acceleration (4000 frames)"
+	hardText := "3 or H - HARD"
+	hardSubText := "Fast acceleration (2000 frames)"
+	
+	yOffset := panelY + 140
+	lineSpacing := 60.0
+	
+	// Easy option
+	easyOpts := &text.DrawOptions{}
+	easyOpts.GeoM.Scale(2.5, 2.5)
+	easyOpts.GeoM.Translate(panelX+80, yOffset)
+	easyOpts.ColorScale.ScaleWithColor(color.RGBA{100, 255, 100, 255}) // Green
+	text.Draw(screen, easyText, textFace, easyOpts)
+	
+	easySubOpts := &text.DrawOptions{}
+	easySubOpts.GeoM.Scale(1.5, 1.5)
+	easySubOpts.GeoM.Translate(panelX+120, yOffset+30)
+	easySubOpts.ColorScale.ScaleWithColor(color.RGBA{200, 200, 200, 255}) // Gray
+	text.Draw(screen, easySubText, textFace, easySubOpts)
+	
+	// Medium option
+	mediumOpts := &text.DrawOptions{}
+	mediumOpts.GeoM.Scale(2.5, 2.5)
+	mediumOpts.GeoM.Translate(panelX+80, yOffset+lineSpacing*1.5)
+	mediumOpts.ColorScale.ScaleWithColor(color.RGBA{255, 255, 100, 255}) // Yellow
+	text.Draw(screen, mediumText, textFace, mediumOpts)
+	
+	mediumSubOpts := &text.DrawOptions{}
+	mediumSubOpts.GeoM.Scale(1.5, 1.5)
+	mediumSubOpts.GeoM.Translate(panelX+120, yOffset+lineSpacing*1.5+30)
+	mediumSubOpts.ColorScale.ScaleWithColor(color.RGBA{200, 200, 200, 255})
+	text.Draw(screen, mediumSubText, textFace, mediumSubOpts)
+	
+	// Hard option
+	hardOpts := &text.DrawOptions{}
+	hardOpts.GeoM.Scale(2.5, 2.5)
+	hardOpts.GeoM.Translate(panelX+80, yOffset+lineSpacing*3)
+	hardOpts.ColorScale.ScaleWithColor(color.RGBA{255, 100, 100, 255}) // Red
+	text.Draw(screen, hardText, textFace, hardOpts)
+	
+	hardSubOpts := &text.DrawOptions{}
+	hardSubOpts.GeoM.Scale(1.5, 1.5)
+	hardSubOpts.GeoM.Translate(panelX+120, yOffset+lineSpacing*3+30)
+	hardSubOpts.ColorScale.ScaleWithColor(color.RGBA{200, 200, 200, 255})
+	text.Draw(screen, hardSubText, textFace, hardSubOpts)
 }
 

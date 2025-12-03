@@ -6,9 +6,9 @@ const (
 	ScreenHeight     = 720
 	PlayerSize       = 128
 	PlayerSpeed      = 5.0
-	ScrollSpeed      = 3.0  // Speed at which the environment scrolls
-	ObstacleMinGap   = 400   // Minimum vertical space for the path
-	ObstacleMaxGap   = 400   // Maximum vertical space for the path
+	ScrollSpeed      = 4.0  // Speed at which the environment scrolls (increased from 3.0)
+	ObstacleMinGap   = 350   // Minimum vertical space for the path (decreased from 400)
+	ObstacleMaxGap   = 350   // Maximum vertical space for the path (decreased from 400)
 	NumFish          = 14    // Number of fish following the leader
 	FishSize         = 48    // Size of each following fish
 	FishFollowSpeed  = 4.0   // Speed at which fish follow
